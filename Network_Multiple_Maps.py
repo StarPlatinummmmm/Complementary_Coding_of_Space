@@ -10,7 +10,7 @@ bm.set_platform('cpu')
 
 class Place_net(bp.DynamicalSystem):
     def __init__(self, z_min, z_max, map_num=2, neuron_num=1280, place_num=128, k = 1.,
-                 tau=10.,  a_p = 0.5, J0=50.):
+                 tau=10.,  a_p = 0.5, J0=5.):
         super(Place_net, self).__init__()
 
         # parameters
@@ -28,7 +28,8 @@ class Place_net(bp.DynamicalSystem):
         self.rho = place_num / self.z_range  # The neural density
         self.dx = self.z_range / place_num  # The stimulus density
         # Construct place cell maps
-        self.map, self.place_index = self.generate_maps() # Sample place_num neurons from all neurons and map them to feature space
+        self.map, self.place_index = self.generate_maps() 
+        # Sample place_num neurons from all neurons and map them to feature space
         # Connections
         self.conn_mat = bm.zeros([neuron_num, neuron_num])
         for i in range(self.map_num):
@@ -92,7 +93,8 @@ class Place_net(bp.DynamicalSystem):
         self.input.value = bm.zeros([self.neuron_num])
         self.input[self.place_index[map_index]] = input
         # Update neural state
-        du = (-self.u + self.input + Irec) / self.tau * bm.dt
+        noise = 0.1*bm.random.randn(self.neuron_num)
+        du = (-self.u + self.input + Irec + noise) / self.tau * bm.dt
         u = self.u + du
         self.u.value = bm.where(u > 0, u, 0)
         r1 = bm.square(self.u)
