@@ -102,7 +102,7 @@ class Place_net(bp.DynamicalSystem):
         self.r.value = r1 / r2
 
 class Grid_net(bp.DynamicalSystem):
-    def __init__(self, L, z_min, z_max, neuron_num=100, neuron_num_hpc=1000, k_mec=1.,
+    def __init__(self, L, maps, place_index, neuron_num=100, k_mec=1.,
                  tau=1.,  a_g=1., J0=50., W0 = 0.1):
         super(Grid_net, self).__init__()
 
@@ -114,9 +114,12 @@ class Grid_net(bp.DynamicalSystem):
         self.J0 = J0  # maximum connection value
         self.W0 = W0
         self.neuron_num = neuron_num
-        self.neuron_num_hpc = neuron_num_hpc
-        # feature space
-        self.x_hpc = np.linspace(z_min, z_max, neuron_num_hpc, endpoint=False)  # The encoded feature values
+        self.neuron_num_hpc = maps.shape[1]
+        # feature space of hpc
+        self.x_hpc = maps
+        self.place_index = place_index
+        self.map_num = maps.shape[0]
+        # feature space of mec
         self.x = np.linspace(-np.pi, np.pi, neuron_num, endpoint=False)  # The encoded feature values
         self.rho = neuron_num / np.pi/2  # The neural density
         self.dx = np.pi*2  / neuron_num  # The stimulus density
@@ -131,7 +134,10 @@ class Grid_net(bp.DynamicalSystem):
         # Connections
         conn_mat = self.make_conn()
         self.conn_fft = bm.fft.fft(conn_mat) # Grid cell recurrent conn
-        self.conn_out = self.make_conn_out() # From grid cells to place cells
+        conn_out = bm.zeros([self.neuron_num_hpc, self.neuron_num])
+        for i in range(self.map_num):  
+            conn_out[:,self.place_index] += self.make_conn_out(self.x_hpc[i]) # From grid cells to place cells
+        self.conn_out = conn_out
 
     def xtopi(self,x):
         return (x%self.L)/self.L*2*np.pi-np.pi
@@ -141,11 +147,11 @@ class Grid_net(bp.DynamicalSystem):
         B = bm.where(B < -bm.pi, B + 2 * bm.pi, B)
         return B
     
-    def make_conn_out(self):
-        theta_hpc = self.xtopi(self.x_hpc)
+    def make_conn_out(self, map):
+        theta_hpc = self.xtopi(map)
         D = theta_hpc[:, None] - self.x
         Dis_circ = self.period_bound(D)
-        conn_out = self.W0/(self.a*np.sqrt(2*np.pi)) * bm.exp(-0.5 * bm.square(Dis_circ / self.a))
+        conn_out = self.W0/(self.a*bm.sqrt(2*bm.pi)) * bm.exp(-0.5 * bm.square(Dis_circ / self.a))
         return conn_out
     
     def make_conn(self):
