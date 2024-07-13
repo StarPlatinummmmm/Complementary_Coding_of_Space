@@ -4,7 +4,7 @@ import numpy as np
 import jax
 
 bm.set_dt(0.2) #length of time step
-bm.set_platform('cpu')
+bm.set_platform('gpu')
 # bm.set_platform('gpu')
 
 class Place_net(bp.DynamicalSystem):
@@ -54,11 +54,12 @@ class Place_net(bp.DynamicalSystem):
         self.input.value = bm.Variable(bm.zeros(self.num))
 
     def get_center(self):
-        r0 = self.r
-        r = bm.where(self.r>bm.max(r0)/10, self.r, 0)
-        x = (self.x / self.z_range - 1/2) * 2*np.pi
+        r = self.r
+        # r0 = self.r
+        # r = bm.where(self.r>bm.max(r0)/10, self.r, 0)
+        x = np.linspace(-np.pi,np.pi,self.num,endpoint=False)
         exppos = bm.exp(1j * x)
-        self.center[0] = (bm.angle(bm.sum(exppos * r))/2/np.pi + 1/2) * self.z_range
+        self.center[0] = (bm.angle(bm.sum(exppos * r))/2/np.pi+1/2) * self.z_range + self.z_min
 
     def update(self, Ip, I_grid):
         # Calculate self position
@@ -173,23 +174,85 @@ class Coupled_Net(bp.DynamicalSystemNS):
         self.num_hpc = HPC_model.num
         self.W_G = bm.ones([self.num_module,])
         self.phase = bm.Variable(bm.zeros([self.num_module,]))
+        self.energy = bm.Variable(bm.zeros(1,))
         # self.W_G = bm.Variable(bm.ones([self.num_module,]))
     def reset_state(self):
         self.HPC_model.reset_state()
         for MEC_model in self.MEC_model_list:
             MEC_model.reset_state()
-    def initial(self, Ip, Ig):
+
+    def initial(self, alpha_p, alpha_g, Ip, Ig):
         # Update MEC states
         r_hpc = bm.zeros(self.HPC_model.num)
         I_mec = bm.zeros(self.HPC_model.num)
         i = 0
         for MEC_model in self.MEC_model_list:
-            MEC_model.update(Ig[i], r_hpc)
+            MEC_model.update(alpha_g*Ig[i], r_hpc)
             i+=1
         # Update Hippocampus states
-        self.HPC_model.update(Ip, I_grid = I_mec)
+        self.HPC_model.update(alpha_p*Ip, I_grid = I_mec)
 
-    def update(self, Ip, Ig):
+    def Get_Energy(self, alpha_p, alpha_g, Ip, Ig):
+        ug = self.MEC_model_list[0].u
+        up = self.HPC_model.u
+        rg = self.MEC_model_list[0].r
+        rp = self.HPC_model.r
+        # Bump height
+        Ag = bm.max(ug)
+        Ap = bm.max(up)
+        Rg = bm.max(rg)
+        Rp = bm.max(rp)
+        # Parameters
+        rho_g = self.MEC_model_list[0].rho
+        tau_g = self.MEC_model_list[0].tau
+        tau_p = self.HPC_model.tau
+        rho_p = self.HPC_model.rho
+        a_p = self.HPC_model.a
+        # Sigma
+        Lambda = bm.zeros(self.num_module,)
+        sigma_phi  = bm.zeros(self.num_module)
+        for i in range(self.num_module):
+            J_pg = self.MEC_model_list[i].W0
+            Lambda[i] = self.MEC_model_list[i].L
+            sigma_phi[i] = 1/((Lambda[i]/2/bm.pi) * bm.sqrt(J_pg*rho_g*Rg/(4*Ap*tau_p))) 
+        sigma_p = bm.sqrt(bm.sqrt(bm.pi)*Ap**3*rho_p*tau_p/(a_p*alpha_p)) 
+        # Feature space
+        place_x = self.HPC_model.x
+        theta = self.MEC_model_list[0].x
+        
+        # Network decoding
+        z = self.HPC_model.center[0]
+        phi = bm.zeros(self.num_module,)
+        psi_z = bm.mod(z / Lambda, 1) * 2 * bm.pi
+        for i in range(self.num_module):
+            phi[i] = self.MEC_model_list[i].center[0]
+        # 圆周距离函数
+        def circ_dis(phi_1, phi_2):
+            dis = phi_1 - phi_2
+            dis = bm.where(dis>bm.pi, dis-2*bm.pi, dis)
+            dis = bm.where(dis<-bm.pi, dis+2*bm.pi, dis)
+            return dis
+        # Calculate log posterior
+        log_prior = 0
+        log_likelihood_grid = 0
+        for i in range(self.num_module):
+            a_g = self.MEC_model_list[i].a
+            sigma_g = bm.sqrt(bm.sqrt(bm.pi)*Ag**3*rho_g*tau_g/(a_g*alpha_g)) 
+            dis_1 = circ_dis(theta, phi[i])
+            fg = bm.exp(-dis_1**2 / (4 * a_g**2))
+            log_likelihood_grid -= bm.sum((Ig[i, :] - fg)**2) / sigma_g**2
+            dis_2 = circ_dis(phi[i], psi_z[i])
+            log_prior -= 1 / (sigma_phi[i]**2) * bm.exp(-dis_2**2/8/a_g**2) * dis_2**2
+        dis_x = place_x - z
+        fp = bm.exp(-dis_x**2 / (4 * a_p ** 2))
+        log_likelihood_place = -bm.sum((Ip - fp)**2) / sigma_p**2
+        log_posterior = log_likelihood_grid + log_prior + log_likelihood_place
+        # Energy function
+        self.energy[0] = - log_posterior
+
+
+    def update(self, alpha_p, alpha_g, Ip, Ig):
+        self.Get_Energy(alpha_p, alpha_g, Ip, Ig)
         # Update MEC states
         r_hpc = self.HPC_model.r
         I_mec_module = bm.zeros([self.num_hpc, self.num_module])
@@ -198,9 +261,9 @@ class Coupled_Net(bp.DynamicalSystemNS):
             r_mec = MEC_model.r
             I_basis = bm.matmul(MEC_model.conn_out, r_mec)
             I_mec_module[:,i] = I_basis 
-            MEC_model.update(Ig[i], r_hpc)
+            MEC_model.update(alpha_g*Ig[i], r_hpc)
             self.phase[i] = MEC_model.center[0]
             i+=1
         self.I_mec = bm.matmul(I_mec_module, self.W_G)
         # Update Hippocampus states
-        self.HPC_model.update(Ip, I_grid = self.I_mec)
+        self.HPC_model.update(alpha_p*Ip, I_grid = self.I_mec)
