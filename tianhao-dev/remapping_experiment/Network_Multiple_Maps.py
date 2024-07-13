@@ -5,8 +5,8 @@ import random
 import jax
 
 bm.set_dt(0.1)  # length of time step
-# bm.set_platform('cpu')
-bm.set_platform('gpu')
+bm.set_platform('cpu')
+# bm.set_platform('gpu')
 
 class Place_net(bp.DynamicalSystem):
   def __init__(self, z_min, z_max, map_num=2, neuron_num=1280, place_num=128, k=1.,
@@ -135,7 +135,7 @@ class Grid_net(bp.DynamicalSystem):
     self.x = bm.linspace(-bm.pi, bm.pi, neuron_num, endpoint=False)  # The encoded feature values
     self.rho = neuron_num / bm.pi / 2  # The neural density
     self.dx = bm.pi * 2 / neuron_num  # The stimulus density
-    self.phase = bm.random.rand(self.map_num) * self.L * 0
+    self.phase = bm.random.rand(self.map_num) * self.L
 
     # variables
     self.r = bm.Variable(bm.zeros(neuron_num))
