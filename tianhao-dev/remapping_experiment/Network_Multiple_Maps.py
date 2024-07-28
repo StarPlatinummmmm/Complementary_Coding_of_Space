@@ -135,7 +135,7 @@ class Grid_net(bp.DynamicalSystem):
     self.x = bm.linspace(-bm.pi, bm.pi, neuron_num, endpoint=False)  # The encoded feature values
     self.rho = neuron_num / bm.pi / 2  # The neural density
     self.dx = bm.pi * 2 / neuron_num  # The stimulus density
-    self.phase = bm.random.rand(self.map_num) * self.L
+    self.phase = bm.random.rand(self.map_num) * self.L 
 
     # variables
     self.r = bm.Variable(bm.zeros(neuron_num))
@@ -197,6 +197,7 @@ class Grid_net(bp.DynamicalSystem):
     self.center_input[0] = bm.angle(bm.sum(exppos * self.input))
 
   def update(self, r_hpc, loc=10, input_stre=1., map_index=0):
+    I_per = 0 #-50
     Ig = self.get_input_pos(pos=loc, map_index=map_index, input_strength=input_stre)
     # Calculate self position
     self.get_center()
@@ -209,7 +210,7 @@ class Grid_net(bp.DynamicalSystem):
     # Calculate total input
     self.input.value = input_hpc + Ig
     # Update neural state
-    du = (-self.u + self.input + Irec) / self.tau * bm.dt
+    du = (-self.u + self.input + Irec + I_per) / self.tau * bm.dt
     u = self.u + du
     self.u.value = bm.where(u > 0, u, 0)
     r1 = bm.square(self.u)

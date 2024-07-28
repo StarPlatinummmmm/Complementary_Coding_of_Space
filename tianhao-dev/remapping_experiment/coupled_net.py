@@ -14,7 +14,7 @@ place_num, grid_num, module_num = 800, 20, 7
 a_p = 0.5
 Spacing = bm.linspace(6, 20, module_num)
 num_map = 15
-map_num_all = bm.arange(num_map) + 2
+map_num_all = bm.arange(num_map) + 2 # 2-17
 simulaiton_num = 100
 
 # Preallocate arrays
@@ -104,13 +104,13 @@ for i, map_num in enumerate(map_num_all):
     #     [bm.sum(Place_cell.get_bump(map_index, loc) * (u_place / bm.sum(u_place))) for loc in loc_candidate])
     #   bump_score[map_index] = bm.max(score_candidate)
 
-    bump_score = compute_bump_score(u, loc_candidate, map_num, Place_cell)
-    bump_score_orginal_monte[j] = bump_score[0]
+    bump_score = compute_bump_score(u, loc_candidate, map_num, Place_cell) # coupled net
+    bump_score_orginal_monte[j] = bump_score[0] 
     bump_score_others_monte[j] = bm.max(bump_score[1:])
     bump_score_diff_monte[j] = bump_score_orginal_monte[j] - bump_score_others_monte[j]
 
 
-    bump_score_only = compute_bump_score(u_only, loc_candidate, map_num, Place_cell_only)
+    bump_score_only = compute_bump_score(u_only, loc_candidate, map_num, Place_cell_only) # only place net
     bump_score_orginal_monte_only[j] = bump_score_only[0]
     bump_score_others_monte_only[j] = bm.max(bump_score_only[1:])
     bump_score_diff_monte_only[j] = bump_score_orginal_monte_only[j] - bump_score_others_monte_only[j]
