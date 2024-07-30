@@ -4,7 +4,7 @@ import numpy as np
 import jax
 
 bm.set_dt(0.2) #length of time step
-bm.set_platform('gpu')
+bm.set_platform('cpu')
 # bm.set_platform('gpu')
 
 class Place_net(bp.DynamicalSystem):
@@ -255,15 +255,22 @@ class Coupled_Net(bp.DynamicalSystemNS):
         self.Get_Energy(alpha_p, alpha_g, Ip, Ig)
         # Update MEC states
         r_hpc = self.HPC_model.r
+
         I_mec_module = bm.zeros([self.num_hpc, self.num_module])
         i = 0
         for MEC_model in self.MEC_model_list:
             r_mec = MEC_model.r
             I_basis = bm.matmul(MEC_model.conn_out, r_mec)
+            # I_basis[index-30] = 0
+            # I_basis[index+30] = 0
             I_mec_module[:,i] = I_basis 
             MEC_model.update(alpha_g*Ig[i], r_hpc)
             self.phase[i] = MEC_model.center[0]
             i+=1
-        self.I_mec = bm.matmul(I_mec_module, self.W_G)
+        I_mec = bm.matmul(I_mec_module, self.W_G)
+        index = bm.argmax(I_mec)
+        I_mec[index-10] = 0
+        I_mec[index+10] = 0
+        self.I_mec = I_mec
         # Update Hippocampus states
         self.HPC_model.update(alpha_p*Ip, I_grid = self.I_mec)
