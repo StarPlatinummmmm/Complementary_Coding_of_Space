@@ -96,6 +96,7 @@ def PSC_MAP_decoder(PSCModel, activation_gs, n_pos=1000, n_phi=100):
     ## parameter space
     # z_candidates = LSCModel.mu_p
     # phi_candidates = PSCModel.mu_g # the density for different modules is the same
+    
     z_candidates = np.linspace(0, L, n_pos, endpoint=False)
     phi_candidates = np.linspace(-np.pi, np.pi, n_phi, endpoint=False)
     ### Q: candidate number is not necessarily equal with the neuron number?
