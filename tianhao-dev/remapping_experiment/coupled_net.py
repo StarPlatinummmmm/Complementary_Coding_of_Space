@@ -96,13 +96,8 @@ for i, map_num in enumerate(map_num_all):
         return bm.max(score_candidate)
 
       bump_score = bm.for_loop(body, (bm.arange(map_num)), progress_bar=False)
-      return bump_score
-
-    # for map_index in range(map_num):
-    #   u_place = u
-    #   score_candidate = bm.array(
-    #     [bm.sum(Place_cell.get_bump(map_index, loc) * (u_place / bm.sum(u_place))) for loc in loc_candidate])
-    #   bump_score[map_index] = bm.max(score_candidate)
+      return bump_score/0.7
+    
 
     bump_score = compute_bump_score(u, loc_candidate, map_num, Place_cell) # coupled net
     bump_score_orginal_monte[j] = bump_score[0] 
@@ -118,6 +113,9 @@ for i, map_num in enumerate(map_num_all):
     # jax.experimental.io_callback(print((i * simulaiton_num + j) / (simulaiton_num * num_map)))
   print('simulaiton trail:', i)
   bm.for_loop(update_func, bm.arange(simulaiton_num), progress_bar=True)
+  bump_score_diff = bm.mean(bump_score_diff_monte)
+  if bump_score_diff<0.58:
+    max_map_num = map_num
 
   bump_score_orginal[i] = bm.mean(bump_score_orginal_monte)
   bump_score_others[i] = bm.mean(bump_score_others_monte)
@@ -200,7 +198,7 @@ plt.tight_layout()
 plt.savefig('bump_score_errorbars_place_only.png')
 
 # Save the data
-np.savez('bump_scores_coupled_net_noshufflephase.npz',
+np.savez('bump_scores_coupled_net_shufflephase.npz',
          bump_score_orginal=bump_score_orginal,
          bump_score_others=bump_score_others,
          bump_score_diff=bump_score_diff,
