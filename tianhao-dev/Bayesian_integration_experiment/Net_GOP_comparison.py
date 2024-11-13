@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from Network import Place_net, Grid_net, Coupled_Net
+from Network_bayesian import Place_net, Grid_net, Coupled_Net
 import brainpy as bp
 import brainpy.math as bm
 from matplotlib.animation import FuncAnimation

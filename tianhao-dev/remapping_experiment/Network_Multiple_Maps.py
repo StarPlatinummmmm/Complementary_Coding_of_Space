@@ -5,8 +5,8 @@ import random
 import jax
 
 bm.set_dt(0.1)  # length of time step
-bm.set_platform('cpu')
-# bm.set_platform('gpu')
+# bm.set_platform('cpu')
+bm.set_platform('gpu')
 
 class Place_net(bp.DynamicalSystem):
   def __init__(self, z_min, z_max, map_num=2, neuron_num=1280, place_num=128, k=1.,

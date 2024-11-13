@@ -21,6 +21,20 @@ bump_score_others_std = np.zeros(num_map)
 bump_score_diff_std = np.zeros(num_map)
 simulaiton_num = 2
 
+def cosine_similarity(A, B):
+    # 将输入转化为NumPy数组
+    A = np.array(A)
+    B = np.array(B)
+    # 计算向量的点积
+    dot_product = np.dot(A, B)
+    # 计算向量的范数（即向量的长度）
+    norm_A = np.linalg.norm(A)
+    norm_B = np.linalg.norm(B)
+    
+    # 计算并返回余弦相似度
+    cosine_sim = dot_product / (norm_A * norm_B)
+    return cosine_sim
+
 # map_num = 10
 for i in range(num_map):
     map_num = map_num_all[i]
@@ -37,8 +51,7 @@ for i in range(num_map):
         for module in range(module_num):
             Grid_cell = Grid_net(L = Spacing[module], maps=maps, place_index=place_index, neuron_num=grid_num, J0=5, a_g=a_p/Spacing[module]*2*bm.pi)
             Gird_module_list.append(Grid_cell)
-
-
+            
         conn_out = Grid_cell.conn_out
 
         map_index = 0
